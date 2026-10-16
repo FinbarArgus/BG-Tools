@@ -1,0 +1,30 @@
+@prefix bgf: <https://bg-rdf.org/ontologies/bondgraph-framework#> .
+@prefix cdt: <https://w3id.org/cdt/> .
+@prefix tpl: <https://bg-rdf.org/templates/> .
+
+@prefix : <#> .
+
+# Two hydraulic stores joined by a resistor with a Bernoulli loss.
+
+:bernoulli_resistor
+    a bgf:BondgraphModel ;
+    bgf:usesTemplate tpl:hydraulic.ttl ;
+    bgf:hasBondElement :q_1, :R, :q_2 .
+
+:q_1
+    a bgf:HydraulicStorageNode ;
+    bgf:hasValue "0.5 L"^^cdt:ucum ;
+    bgf:parameterValue [ bgf:varName "E" ; bgf:hasValue "20 J"^^cdt:ucum ] .
+
+:q_2
+    a bgf:HydraulicStorageNode ;
+    bgf:hasValue "2 L"^^cdt:ucum ;
+    bgf:parameterValue [ bgf:varName "E" ; bgf:hasValue "20 J"^^cdt:ucum ] .
+
+:R
+    a bgf:BernoulliHydraulicResistanceNode ;
+    bgf:parameterValue [ bgf:varName "R" ; bgf:hasValue "4 kPa.s/L"^^cdt:ucum ] ,
+                       [ bgf:varName "B" ; bgf:hasValue "1.5 kPa.s2/L2"^^cdt:ucum ] .
+
+:q_1.R bgf:hasSource :q_1 ; bgf:hasTarget :R .
+:R.q_2 bgf:hasSource :R ; bgf:hasTarget :q_2 .

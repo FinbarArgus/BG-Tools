@@ -1,0 +1,31 @@
+@prefix bgf: <https://bg-rdf.org/ontologies/bondgraph-framework#> .
+@prefix cdt: <https://w3id.org/cdt/> .
+@prefix tpl: <https://bg-rdf.org/templates/> .
+
+@prefix : <#> .
+
+# 2 A -> B through a saturating reaction: A a chemostat (a chemical potential source, its own zero node), B a store
+# whose activity saturates.
+
+:saturating_reaction
+    a bgf:BondgraphModel ;
+    bgf:usesTemplate tpl:chemical.ttl ;
+    bgf:hasBondElement :Se_A, :Re, :q_B .
+
+:Se_A
+    a bgf:ChemicalPotential ;
+    bgf:hasValue "1000 J/mol"^^cdt:ucum .
+
+:Re
+    a bgf:SaturatingChemicalReactionNode ;
+    bgf:parameterValue [ bgf:varName "kappa" ; bgf:hasValue "0.5 mol/s"^^cdt:ucum ] ,
+                       [ bgf:varName "sigma" ; bgf:hasValue "3 1"^^cdt:ucum ] .
+
+:q_B
+    a bgf:SaturatingChemicalStorageNode ;
+    bgf:hasValue "0.2 mol"^^cdt:ucum ;
+    bgf:parameterValue [ bgf:varName "K" ; bgf:hasValue "2 mol-1"^^cdt:ucum ] ,
+                       [ bgf:varName "k_sat" ; bgf:hasValue "0.5 mol"^^cdt:ucum ] .
+
+:Se_A.Re bgf:hasSource :Se_A ; bgf:hasTarget :Re ; bgf:bondCount 2 .
+:Re.q_B bgf:hasSource :Re ; bgf:hasTarget :q_B .

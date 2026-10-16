@@ -474,11 +474,11 @@ class BondgraphElement(ModelElement):
 class BondgraphBond(ModelElement):
     def __init__(self, model: 'BondgraphModel', id: str,
                         source_id: str, target_id: str,
-                        count: Literal|None=None, label: str|None=None):
+                        count: int|None=None, label: str|None=None):
         super().__init__(model, id, label=label)
         self.__source_id = source_id
         self.__target_id = target_id
-        self.__bond_count = int(count.value) if count is not None else 1
+        self.__bond_count = count if count is not None else 1
 
     @property
     def bond_count(self) -> int:

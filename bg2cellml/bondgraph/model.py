@@ -230,7 +230,9 @@ class BondgraphModel(Labelled):   ## Component ??
             elif (junction := self.__junctions.get(target_id)) is not None and junction.type == TRANSFORM_JUNCTION:
                 target_id = make_element_port_id(target_id, TRANSFORM_PORT_IDS[0])  # Inward port id
             self.__bonds.append(
-                BondgraphBond(self, bond_id, source_id, target_id, row.get('label'), optional_integer(row.get('bondCount'))))    # pyright: ignore[reportArgumentType]
+                BondgraphBond(self, bond_id, source_id, target_id,
+                              count=optional_integer(row.get('bondCount')),         # pyright: ignore[reportArgumentType]
+                              label=literal_as_string(row.get('label'))))           # pyright: ignore[reportArgumentType]
 
         self.__make_bond_network()
         self.__check_and_assign_domains_to_bond_network()

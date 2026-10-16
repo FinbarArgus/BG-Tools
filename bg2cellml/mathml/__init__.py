@@ -82,6 +82,16 @@ def sympy_from_mathml(node: etree.Element) -> sympy.Expr:
         return sympy.cos(sympy_from_mathml(children[1]))
     elif operator == MATHML_NS.sin:
         return sympy.sin(sympy_from_mathml(children[1]))
+    elif operator == MATHML_NS.abs:
+        return sympy.Abs(sympy_from_mathml(children[1]))
+    elif operator == MATHML_NS.root:
+        # <root/> with an optional <degree> (a square root without one)
+        degree = sympy.Integer(2)
+        args = [child for child in children[1:] if not isinstance(child, etree._Comment)]
+        if args and args[0].tag == MATHML_NS.degree:
+            degree = sympy_from_mathml(args[0].getchildren()[0])
+            args = args[1:]
+        return sympy.Pow(sympy_from_mathml(args[0]), sympy.Integer(1)/degree)
     else:
         raise ValueError(f'Unsupported MathML operator: {operator}')
 
