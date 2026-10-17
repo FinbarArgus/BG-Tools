@@ -601,6 +601,25 @@ class BondgraphJunction(ModelElement):
         else:
             self.__transform_relation = GYRATOR_EQUATIONS.copy()
 
+    def __own_lhs(self, equation: Equation) -> Equation:
+    #===================================================
+        # A transform node's equations are written for its port variables (u_1 = RATIO u_0, v_1 = v_0/RATIO);
+        # where a port takes a connected element's variable (a store's potential, a reaction's flow), that
+        # variable is already defined there, so the equation is solved for the node's own variable instead,
+        # keeping the CellML causal (each variable defined once) whichever way the bonds are drawn.
+        own = {sympy.Symbol(v.symbol) for v in self.__variables.values()   # its ports' potentials and flows
+               if self.symbol and v.symbol.startswith((f'u_{self.symbol}_', f'v_{self.symbol}_'))}
+        lhs = equation.lhs
+        if not isinstance(lhs, sympy.Symbol) or lhs in own:
+            return equation
+        unknowns = [s for s in equation.rhs.free_symbols if s in own]
+        if len(unknowns) != 1:
+            return equation
+        solution = sympy.solve(sympy.Eq(lhs, equation.rhs), unknowns[0])
+        if len(solution) != 1:
+            return equation
+        return Equation(unknowns[0], solution[0], equation.provenance)
+
     def build_equations(self, bond_graph: nx.DiGraph) -> list[Equation]:
     #===================================================================
         ## is this where we multiply by bondCount??
@@ -608,7 +627,7 @@ class BondgraphJunction(ModelElement):
             if self.__transform_relation is not None:
                 for name, variable in self.__variables.items():
                     self.__transform_relation.substitute(name, variable.symbol)
-                self.__equations = self.__transform_relation.equations
+                self.__equations = [self.__own_lhs(eq) for eq in self.__transform_relation.equations]
         elif bond_graph.degree[self.uri.value] > 1:
             # we are connected to several nodes
             inputs = []

@@ -69,6 +69,25 @@ def test_electrogenic_reaction_through_transformers():
     assert rates['q_B'] == pytest.approx(v, rel=1e-6)
     assert rates['q_C_m'] == pytest.approx(F*v, rel=1e-6)
 
+def test_transformer_equations_keep_the_cellml_causal():
+    '''Where a transformer's port takes a connected element's variable (the capacitor's potential, the reaction's
+    flow), its equation is solved for the transformer's own variable, so every variable is defined once (as
+    simulators that need explicit equations, e.g. Myokit, require).'''
+    from collections import Counter
+    import lxml.etree as etree
+    from bg2cellml.mathml import MATHML_NS
+    root = etree.fromstring(cellml_from_bgrdf(MODELS / 'electrogenic_reaction.ttl').encode())
+    defined = Counter()
+    for eq in root.iter(MATHML_NS.apply):
+        children = eq.getchildren()
+        if children and children[0].tag == MATHML_NS.eq:
+            lhs = children[1]
+            if lhs.tag == MATHML_NS.ci:
+                defined[lhs.text.strip()] += 1
+            elif lhs.tag == MATHML_NS.apply:   # a derivative
+                defined['d/dt ' + lhs.getchildren()[-1].text.strip()] += 1
+    assert [name for name, n in defined.items() if n > 1] == []
+
 def test_bernoulli_resistor():
     '''A Bernoulli resistor between two hydraulic stores carries the flow whose pressure drop R v + B v|v| is the
     stores' pressure difference.'''
