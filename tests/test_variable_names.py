@@ -45,8 +45,11 @@ def test_rules_and_explicit_names_rename_the_cellml():
     assert {'n_B_c', 'mu_B_c', 'mu_A_c', 'mu_A_c_2', 'J_A_c', 'J_A_c_2', 'v_Re_1', 'v_second',
             'k_Re_1', 'k_Re_2'} <= names
     # without a rule, a variable keeps its bond graph name
-    assert 'K_q_B_B_c' in names and 'v_q_B_B_c' in names
+    assert 'u_f_Re_1' in names and 'u_r_Re_2' in names
     assert not {'q_B_B_c', 'u_q_B_B_c', 'kappa_Re_1', 'v_Re_2', 'u_Se_A_c', 'v_Se_A_c'} & names
+    # a rule for another domain doesn't apply; the rule for the class and domain beats the class's
+    assert 'Kd_B' in names and 'dndt_B' in names
+    assert not {'never_q_B', 'not_this_B', 'K_q_B_B_c', 'v_q_B_B_c'} & names
     # every use is renamed too: the CellML evaluates as the bond graph's does
     values, rates = evaluate(cellml)
     reference, reference_rates = evaluate(cellml_from_bgrdf(MODELS / 'chemostat_copies.ttl'))

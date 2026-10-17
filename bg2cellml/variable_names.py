@@ -23,9 +23,10 @@ A model's variables named its own way in the CellML (BG-RDF's bgf:NamingRule and
 
 By default a variable is named after its element: ``q_G6P_c``, ``u_q_G6P_c``, ``v_Re_HK_c``. A model may give
 rules, each naming one variable (``bgf:forVariable``: the template's q, u, v, u_f, K, kappa, ...) of the elements
-of one class (``bgf:forElementClass``, e.g. bgf:QuantityStore; every class when absent) by a pattern
-(``bgf:namePattern``), and an element may name one of its variables explicitly (``bgf:hasVariableName``). An
-explicit name wins over a rule for the element's class, which wins over a rule for every class.
+of one class (``bgf:forElementClass``, e.g. bgf:QuantityStore; every class when absent) in one physical domain
+(``bgf:forDomain``, e.g. bgf:Chemical; every domain when absent) by a pattern (``bgf:namePattern``), and an element
+may name one of its variables explicitly (``bgf:hasVariableName``). An explicit name wins over rules; of the rules,
+the one for the element's class and domain wins, then its class, then its domain, then neither.
 
 A pattern's placeholders: ``{species}``, ``{location}``, ``{name}`` (the species, else the element's identifier),
 ``{element}`` (the bond graph's name for the element, e.g. q_G6P_c), ``{label}`` (its symbol, e.g. q) and ``{var}``.
@@ -47,12 +48,13 @@ if TYPE_CHECKING:
 #===============================================================================
 
 NAMING_RULES = """
-    SELECT DISTINCT ?rule ?class ?variable ?pattern
+    SELECT DISTINCT ?rule ?class ?domain ?variable ?pattern
     WHERE {
         <%MODEL%> bgf:hasNamingRule ?rule .
         ?rule bgf:forVariable ?variable ;
               bgf:namePattern ?pattern .
         OPTIONAL { ?rule bgf:forElementClass ?class }
+        OPTIONAL { ?rule bgf:forDomain ?domain }
     }"""
 
 VARIABLE_NAMES = """
@@ -101,13 +103,18 @@ def has_naming(model: 'BondgraphModel') -> bool:
     return bool(list(model.rdf_graph.query(NAMING_RULES.replace('%MODEL%', uri)))
              or list(model.rdf_graph.query(VARIABLE_NAMES.replace('%MODEL%', uri))))
 
-def naming_rules(model: 'BondgraphModel') -> dict[tuple[str, str], str]:
-    """{(element class URI, or '' for every class; variable): pattern}"""
-    return {(_value(row, 'class'), _value(row, 'variable')): _value(row, 'pattern')
-            for row in model.rdf_graph.query(NAMING_RULES.replace('%MODEL%', model.uri.value))}
+def naming_rules(model: 'BondgraphModel') -> list[dict[str, str]]:
+    """The model's rules: {class, domain, variable, pattern}, class and domain '' when the rule names none."""
+    return [{'class': _value(row, 'class'), 'domain': _value(row, 'domain'), 'variable': _value(row, 'variable'),
+             'pattern': _value(row, 'pattern')}
+            for row in model.rdf_graph.query(NAMING_RULES.replace('%MODEL%', model.uri.value))]
 
-def rule_for(rules: dict[tuple[str, str], str], element_class: str, var: str) -> str|None:
-    return rules.get((element_class, var), rules.get(('', var)))
+def rule_for(rules: list[dict[str, str]], element_class: str, domain: str, var: str) -> str|None:
+    """The pattern of the most specific rule for the variable: class and domain, then class, then domain, then neither."""
+    fits = [r for r in rules if r['variable'] == var and r['class'] in ('', element_class) and r['domain'] in ('', domain)]
+    if not fits:
+        return None
+    return max(fits, key=lambda r: (r['class'] != '', r['domain'] != ''))['pattern']
 
 def variable_table(model: 'BondgraphModel') -> list[dict[str, str]]:
     """Every element variable: its element, class, template name, bond graph name and CellML name."""
@@ -134,7 +141,7 @@ def variable_table(model: 'BondgraphModel') -> list[dict[str, str]]:
             old = variable.symbol
             if (element.uri.value, var) in given:
                 wanted = valid_name(given[(element.uri.value, var)], var)
-            elif (pattern := rule_for(rules, element.element_class, var)) is not None:
+            elif (pattern := rule_for(rules, element.element_class, element.domain.id, var)) is not None:
                 wanted = render(pattern, var=var, element=element.symbol or identifier, label=ctx['label'],
                                 species=ctx['species'], location=ctx['location'], name=ctx['species'] or identifier)
             else:

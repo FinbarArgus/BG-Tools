@@ -166,6 +166,15 @@ def chemostat_groups(model) -> dict[tuple[str, str], list[tuple[str, str, int]]]
         groups.setdefault(places[element.uri.value], []).append((names.get(u, u), names.get(v, v), sign))
     return groups
 
+def chemostat_domains(model) -> dict[tuple[str, str], str]:
+    """{(species, location): the physical domain's URI} of the model's potential sources with a species."""
+    places = {}
+    for row in model.rdf_graph.query(SOURCES.replace('%MODEL%', model.uri.value)):
+        location = row['location'].value if row.get('location') is not None else ''
+        places[row['uri'].value] = (row['species'].value, location)
+    return {places[e.uri.value]: e.domain.id for e in model.elements
+            if e.element_class == POTENTIAL_SOURCE and e.uri.value in places}
+
 #===============================================================================
 
 def export_module(model, cellml: str, out_dir: str|Path, module_type: str, module_subtype: str,
@@ -207,8 +216,10 @@ def export_module(model, cellml: str, out_dir: str|Path, module_type: str, modul
     # One port per chemostat species and location: a shared potential and the net uptake, named by the model's
     # rule for a potential source's u and v when it has one
     rules = naming_rules(model)
+    domains = chemostat_domains(model)
     def port_name(var: str, place: str, species: str, location: str) -> str:
-        if (pattern := rule_for(rules, POTENTIAL_SOURCE, var)) is not None:
+        domain = domains.get((species, location), '')
+        if (pattern := rule_for(rules, POTENTIAL_SOURCE, domain, var)) is not None:
             return render(pattern, var=var, element=place, label='', species=species, location=location, name=species)
         return f'{var}_{place}'
     for (species, location), copies in sorted(chemostat_groups(model).items()):

@@ -17,7 +17,12 @@
         [ bgf:forElementClass bgf:PotentialSource ; bgf:forVariable "u" ; bgf:namePattern "mu_{species}_{location}" ] ,
         [ bgf:forElementClass bgf:PotentialSource ; bgf:forVariable "v" ; bgf:namePattern "J_{species}_{location}" ] ,
         [ bgf:forElementClass bgf:Reaction ; bgf:forVariable "v" ; bgf:namePattern "v_{name}" ] ,
-        [ bgf:forVariable "kappa" ; bgf:namePattern "k_{name}" ] .
+        [ bgf:forVariable "kappa" ; bgf:namePattern "k_{name}" ] ,
+        # a rule for another domain, and one for this domain that a class-and-domain rule overrides
+        [ bgf:forElementClass bgf:QuantityStore ; bgf:forDomain bgf:Electrical ; bgf:forVariable "K" ; bgf:namePattern "never_{name}" ] ,
+        [ bgf:forDomain bgf:Chemical ; bgf:forVariable "K" ; bgf:namePattern "Kd_{species}" ] ,
+        [ bgf:forElementClass bgf:QuantityStore ; bgf:forDomain bgf:Chemical ; bgf:forVariable "v" ; bgf:namePattern "dndt_{species}" ] ,
+        [ bgf:forElementClass bgf:QuantityStore ; bgf:forVariable "v" ; bgf:namePattern "not_this_{species}" ] .
 
 :Se_A_1
     a bgf:ChemicalPotential ;
