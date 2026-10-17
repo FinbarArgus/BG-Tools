@@ -101,7 +101,18 @@ cellml, path, names = sys.argv[1], sys.argv[2], json.loads(sys.argv[3])
 ours = read_variable_mapping(path)
 theirs = {row['variable_name']: row for row in default_variable_mapping(cellml)}
 kept = {row['variable_name']: row['latex'] for row in variable_mapping(cellml, path)}
+# libcuflynx's schema of the file, when it has one (read_variable_mapping then checks the file against it too)
+try:
+    from libcuflynx.reporting.variable_mapping import variable_mapping_document
+    from libcuflynx.schemas import VARIABLE_MAPPING_SCHEMA
+    from libcuflynx.schemas.validation import validate
+    validate(VARIABLE_MAPPING_SCHEMA, variable_mapping_document(path), source=path, what='variable mapping')
+    schema = True
+except ImportError:
+    schema = False
+bondgraph = {k: r.get('bondgraph') for k, r in ours.items()} if schema else None
 print(json.dumps({
+    'schema': schema, 'bondgraph': bondgraph,
     'ours': {k: [r['kind'], r['component']] for k, r in ours.items()},
     'theirs': {k: [r['kind'], r['component']] for k, r in theirs.items()},
     'kept': kept, 'latex': {k: r['latex'] for k, r in ours.items()},
@@ -127,6 +138,9 @@ def test_libcuflynx_reads_the_mapping_and_keeps_its_symbols(tmp_path):
     assert out['kept'] == out['latex']
     # the default rule is libcuflynx's
     assert {n: symbol(n) for n in names} == out['symbols']
+    # with libcuflynx's schema of the mapping, the file is valid, and its bondgraph column is read
+    if out['schema']:
+        assert out['bondgraph']['main/n_B_c'] == 'q_B_B_c'
 
 #===============================================================================
 #===============================================================================
