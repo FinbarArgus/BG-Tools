@@ -38,7 +38,7 @@ from .framework_support import Domain, NamedPortVariable, PowerPort, Variable
 from .framework_support import ONENODE_JUNCTION, TRANSFORM_JUNCTION, ZERONODE_JUNCTION
 from .framework_support import FLOW_SOURCE, POTENTIAL_SOURCE
 from .framework_support import FLOW_STORE, QUANTITY_STORE, REACTION, RESISTANCE
-from .framework_support import GYRATOR_EQUATIONS, TRANSFORMER_EQUATIONS
+from .framework_support import GYRATOR_EQUATIONS, GYRATOR_NODE, TRANSFORMER_EQUATIONS, TRANSFORMER_NODE
 from .framework_support import TRANSFORM_FLOW_NAME, TRANSFORM_PORT_IDS, TRANSFORM_POTENTIAL_NAME, TRANSFORM_RATIO_NAME
 from .namespaces import BGF
 from .utils import ModelElement, pretty_name
@@ -501,6 +501,12 @@ class BondgraphJunction(ModelElement):
         super().__init__(model, id, symbol=symbol, label=label)
         self.__type = type.value
         self.__junction = model.framework.junction(self.__type)
+        # A Transformer or Gyrator node is a transform node that says which it is (a plain one is a
+        # transformer within a physical domain and a gyrator between two)
+        self.__transform_kind: str|None = None
+        if self.__type in (TRANSFORMER_NODE, GYRATOR_NODE):
+            self.__transform_kind = self.__type
+            self.__type = TRANSFORM_JUNCTION
         if self.__junction is None:
             model.report_issue(f'Unknown Junction {self.__type} for node {id}')
         self.__transform_relation: MathML|None = None
@@ -589,7 +595,8 @@ class BondgraphJunction(ModelElement):
             if power_port is not None:
                 bond_graph.nodes[port_uri_id]['power_port'] = power_port
                 bond_graph.nodes[port_uri_id]['port_type'] = TRANSFORM_JUNCTION
-        if domains[0] == domains[1]:
+        if self.__transform_kind == TRANSFORMER_NODE \
+        or (self.__transform_kind is None and domains[0] == domains[1]):
             self.__transform_relation = TRANSFORMER_EQUATIONS.copy()
         else:
             self.__transform_relation = GYRATOR_EQUATIONS.copy()

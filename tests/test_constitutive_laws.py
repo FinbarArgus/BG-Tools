@@ -56,6 +56,19 @@ def test_elements_labelled_alike_keep_their_own_variables():
     sources = [name for name in values if name.startswith('v_Se')]
     assert len(sources) == 2
 
+def test_electrogenic_reaction_through_transformers():
+    '''A -> B moving one charge into a compartment at phi = Q/C: through two Transformer nodes (between the chemical
+    and electrical domains, so not gyrators) the forward potential sees -F phi/2 and the reverse +F phi/2, the reaction
+    flows kappa (exp((u_A - F phi/2)/RT) - exp((u_B + F phi/2)/RT)), and the capacitor gains F v.'''
+    values, rates = evaluate(cellml_from_bgrdf(MODELS / 'electrogenic_reaction.ttl'))
+    F = 96485.332
+    u_a, kappa, q, K, Q, C = 1000.0, 0.5, 0.2, 2.0, -0.015, 0.1
+    phi = Q/C
+    v = kappa*(math.exp((u_a - F*phi/2)/RT) - math.exp((RT*math.log(K*q) + F*phi/2)/RT))
+    assert values['v_Re'] == pytest.approx(v, rel=1e-6)
+    assert rates['q_B'] == pytest.approx(v, rel=1e-6)
+    assert rates['q_C_m'] == pytest.approx(F*v, rel=1e-6)
+
 def test_bernoulli_resistor():
     '''A Bernoulli resistor between two hydraulic stores carries the flow whose pressure drop R v + B v|v| is the
     stores' pressure difference.'''
