@@ -24,6 +24,21 @@ $ uv sync --all-groups
 
 See `cli/bgtool/__main__.py` for details.
 
+### A module for libcuflynx and PhLynx
+
+```sh
+$ PYTHONPATH=cli python -m bgtool --module glycogen/bondgraph_v01 --output OUT_DIR glycogen.celldl.svg
+```
+
+writes a module version as a module library (such as circulatory-autogen-modules) holds one, in the formats
+of libcuflynx's `schemas/module_config.schema.json`, PhLynx's keys: `<type>_<subtype>_modules.cellml`,
+`_units.cellml`, `_modules_config.json` and `parameterisations/default/default_parameters.csv`, every value
+of the bond graph a parameter there. Each chemostat species and compartment (all its copies) is a general
+port, `chemostat_<species>_<location>`, of its potential (a boundary condition) and the module's uptake of
+the species. See `bg2cellml/module_export.py`. `tests/test_module_export.py` builds the module with
+libcuflynx and runs it against bg2cellml's own CellML when `LIBCUFLYNX_SRC` (circulatory_autogen's `src/`)
+and `LIBCUFLYNX_PYTHON` (a Python with its dependencies) are set.
+
 ## Example models:
 
 * [An RC electrical circuit](https://github.com/CellDL/BG-RDF/blob/main/examples/example_RC.ttl) 
