@@ -36,6 +36,7 @@ import lxml.etree as etree
 from bg2cellml import BondgraphModel
 from bg2cellml import __version__
 from bg2cellml.bondgraph.framework import get_framework
+from bg2cellml.module_export import export_module
 from bg2cellml.utils import etree_from_string, XMLNamespace
 
 #===============================================================================
@@ -84,13 +85,19 @@ class OmexMaker:
 
 async def model2cellml(bgrdf_model: BondgraphModel, source_path: Path, output: str|None,
                  omex: str|None=None, bgrdf: bool=False, annotate: bool=False,
-                 save_if_errors: bool=False):
+                 save_if_errors: bool=False, module: str|None=None):
     cellml_model = bgrdf_model.make_cellml_model()
     cellml = cellml_model.to_xml()
     has_issues = not valid_cellml(cellml)
 
     if has_issues and not save_if_errors:
         log.warning('No CellML generated')
+    elif module is not None:
+        assert output is not None
+        module_type, _, module_subtype = module.partition('/')
+        for file in export_module(bgrdf_model, cellml, output, module_type, module_subtype or 'bondgraph',
+                                  source=source_path.name):
+            log.info(f'Exported {pretty_log(file)}')
     else:
         source_name = source_path.stem
         if omex is not None:
@@ -157,7 +164,7 @@ async def model2cellml(bgrdf_model: BondgraphModel, source_path: Path, output: s
 
 async def bg2cellml(source_file: str, output: str|None, omex: str|None=None,
                     annotate: bool=False, bgrdf: bool=False, save_if_errors: bool=False,
-                    debug: bool=False):
+                    debug: bool=False, module: str|None=None):
     framework = await get_framework()
     if framework.has_issues:
         for issue in framework.issues:
@@ -184,7 +191,7 @@ async def bg2cellml(source_file: str, output: str|None, omex: str|None=None,
         sys.exit('Issues loading Bondgraph Model')
 
     await model2cellml(bgrdf_model, source_path, output, omex=omex, bgrdf=bgrdf,
-                        annotate=annotate, save_if_errors=save_if_errors)
+                        annotate=annotate, save_if_errors=save_if_errors, module=module)
 
 #===============================================================================
 
@@ -198,6 +205,7 @@ def main():
     parser.add_argument('--output', metavar='OUTPUT_DIR', help='Directory where generated files are saved')
     parser.add_argument('--bgrdf', action='store_true', help='Input file is BG-RDF Turtle, not CellDL')
     parser.add_argument('--annotate', action='store_true', help='Output annotations relating BG elements and their CellML variables')
+    parser.add_argument('--module', metavar='TYPE[/SUBTYPE]', help='Write a module version for libcuflynx and PhLynx into OUTPUT_DIR: its CellML, units, modules_config.json and default parameterisation (SUBTYPE defaults to bondgraph)')
     parser.add_argument('source', metavar='CELLDL', help='Input file')
 
     args = parser.parse_args()
@@ -209,7 +217,7 @@ def main():
     if args.debug:
         print(f'bg2cellml version {__version__}')
     asyncio.run(bg2cellml(args.source, args.output, omex=args.omex, bgrdf=args.bgrdf,
-        annotate=args.annotate, save_if_errors=args.save_errors, debug=args.debug))
+        annotate=args.annotate, save_if_errors=args.save_errors, debug=args.debug, module=args.module))
 
 #===============================================================================
 
