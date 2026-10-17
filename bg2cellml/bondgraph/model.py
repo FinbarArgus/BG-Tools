@@ -37,7 +37,7 @@ from .framework_support import Domain, REACTION, TRANSFORM_JUNCTION, TRANSFORM_P
 from .model_support import BondgraphBond, BondgraphElement, BondgraphJunction
 from .model_support import make_element_port_id, make_symbolic_name
 from .namespaces import BGF, NAMESPACES, get_curie
-from .utils import Labelled, optional_integer, pretty_name, pretty_uri
+from .utils import clean_name, Labelled, optional_integer, pretty_name, pretty_uri
 
 if TYPE_CHECKING:
     from .framework import BondgraphFramework
@@ -110,6 +110,7 @@ class BondgraphModel(Labelled):   ## Component ??
         self.__debug = debug
         self.__elements: dict[str, BondgraphElement] = {}
         self.__junctions: dict[str, BondgraphJunction] = {}
+        self.__symbolic_names: set[str] = set()
         self.__bonds: list[BondgraphBond] = []
         self.__graph = nx.DiGraph()
         (model_id, label) = self.__load_rdf(base_iri, rdf_source)
@@ -157,7 +158,7 @@ class BondgraphModel(Labelled):   ## Component ??
                 if element_uri != last_element_uri:                                 # pyright: ignore[reportOptionalMemberAccess]
                     if last_element_uri is not None and last_template is None:
                         self.report_issue(f'{get_curie(element_type)} element {element_name} is not instantiated 1')
-                    symbol = make_symbolic_name(row)
+                    symbol = self.__unique_name(make_symbolic_name(row), element_uri)
                     if symbol:
                         element_name = pretty_name(symbol, element_uri)
                     else:
@@ -187,7 +188,7 @@ class BondgraphModel(Labelled):   ## Component ??
         for row in self.__rdf_graph.query(MODEL_JUNCTIONS.replace('%MODEL%', self.uri.value)):
             # ?uri ?type ?value ?symbol ?species ?location ?label
             if row['type'].value.startswith(NAMESPACES['bgf']):                                 # pyright: ignore[reportOptionalMemberAccess]
-                symbol = make_symbolic_name(row)
+                symbol = self.__unique_name(make_symbolic_name(row), row['uri'].value)
                 junction = BondgraphJunction(self, row['uri'].value, row['type'], row.get('value'),     # pyright: ignore[reportArgumentType]
                                              symbol, literal_as_string(row.get('label')))               # pyright: ignore[reportArgumentType]
                 self.__junctions[junction.uri.value] = junction
@@ -277,6 +278,23 @@ class BondgraphModel(Labelled):   ## Component ??
                 equations = junction.equations
                 for eq in equations:
                     print('   ', eq)
+
+    def __unique_name(self, symbol: str|None, uri: str) -> str|None:
+    #===============================================================
+        # Variable names come from an element's symbol, species and location; two elements labelled
+        # alike (e.g. copies of a chemostat) would share variables, so a later one takes its name
+        # from its URI's fragment instead, numbered if that is taken too.
+        if symbol is None:
+            return None
+        name = symbol
+        if name in self.__symbolic_names:
+            name = clean_name(uri.rsplit('#', 1)[-1])
+            n = 1
+            while name in self.__symbolic_names:
+                n += 1
+                name = f'{clean_name(uri.rsplit("#", 1)[-1])}_{n}'
+        self.__symbolic_names.add(name)
+        return name
 
     def __generate_bonds(self):
     #==========================

@@ -44,6 +44,18 @@ def test_saturating_reaction_from_a_chemostat_into_a_saturating_store():
     assert rates['q_B'] == pytest.approx(v)
     assert abs(values['v_Se_A']) == pytest.approx(2*v)
 
+def test_elements_labelled_alike_keep_their_own_variables():
+    '''Two copies of a chemostat with the same symbol, species and location (as a diagram draws one beside each
+    reaction) are two sources: each has its own variables, and B gains both reactions' flows.'''
+    values, rates = evaluate(cellml_from_bgrdf(MODELS / 'chemostat_copies.ttl'))
+    u_a, q, K = 1000.0, 0.2, 2.0
+    drive = math.exp(u_a/RT) - K*q
+    assert values['v_Re_1'] == pytest.approx(0.5*drive)
+    assert values['v_Re_2'] == pytest.approx(0.25*drive)
+    assert rates['q_B'] == pytest.approx(0.75*drive)
+    sources = [name for name in values if name.startswith('v_Se')]
+    assert len(sources) == 2
+
 def test_bernoulli_resistor():
     '''A Bernoulli resistor between two hydraulic stores carries the flow whose pressure drop R v + B v|v| is the
     stores' pressure difference.'''
