@@ -39,6 +39,20 @@ the species. See `bg2cellml/module_export.py`. `tests/test_module_export.py` bui
 libcuflynx and runs it against bg2cellml's own CellML when `LIBCUFLYNX_SRC` (circulatory_autogen's `src/`)
 and `LIBCUFLYNX_PYTHON` (a Python with its dependencies) are set.
 
+### A variable mapping for libcuflynx's methods LaTeX
+
+```sh
+$ PYTHONPATH=cli python -m bgtool --variable-mapping --output OUT_DIR glycogen.celldl.svg
+```
+
+also writes `OUT_DIR/<name>_variable_mapping.csv` beside the CellML, and `--module` writes
+`<type>_<subtype>_variable_mapping.csv` with the module. It is libcuflynx's variable mapping
+(`cuflynx-methods-latex --mapping`): `variable_name` (`component/variable`), `latex`, `kind`, `component` and
+`units`, with one more column, `bondgraph`, each variable's bond graph name (`q_G6P_c`). A variable keeping its
+bond graph name is written in bond graph notation (`q^{\mathrm{G6P}}_{c}`); one the model names its own way
+(bgf:NamingRule, bgf:VariableName) by libcuflynx's default rule for its new name. See
+`bg2cellml/variable_mapping.py`.
+
 ## Example models:
 
 * [An RC electrical circuit](https://github.com/CellDL/BG-RDF/blob/main/examples/example_RC.ttl) 

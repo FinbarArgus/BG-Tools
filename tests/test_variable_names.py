@@ -68,7 +68,8 @@ def test_the_table_lists_every_element_variable():
     rows = variable_table(model_of('chemostat_named'))
     by_name = {r['cellml']: r for r in rows}
     assert by_name['n_B_c'] == {'element': by_name['n_B_c']['element'], 'class': 'QuantityStore', 'variable': 'q',
-                                'bondgraph': 'q_B_B_c', 'cellml': 'n_B_c'}
+                                'bondgraph': 'q_B_B_c', 'cellml': 'n_B_c',
+                                'species': 'B', 'location': 'c', 'name': 'q_B'}
     assert by_name['v_second']['bondgraph'] == 'v_Re_2'
     assert len(rows) == len({r['cellml'] for r in rows})       # all distinct
 

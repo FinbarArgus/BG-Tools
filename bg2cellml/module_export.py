@@ -53,6 +53,7 @@ import re
 import lxml.etree as etree
 
 from bg2cellml.bondgraph.framework_support import POTENTIAL_SOURCE
+from bg2cellml.variable_mapping import variable_mapping, write_variable_mapping
 from bg2cellml.variable_names import naming_rules, rename_cellml, render, rule_for, variable_names
 
 #===============================================================================
@@ -319,6 +320,9 @@ def export_module(model, cellml: str, out_dir: str|Path, module_type: str, modul
         files.append(path)
 
     write_xml(out / f'{prefix}_modules.cellml', document)
+    files.append(write_variable_mapping(variable_mapping(model, etree.tostring(document).decode(),
+                                                         parameters={row[0] for row in rows} - port_variables),
+                                        out / f'{prefix}_variable_mapping.csv'))
     write_xml(out / f'{prefix}_units.cellml', units_model)
 
     config = [{

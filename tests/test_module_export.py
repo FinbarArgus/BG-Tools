@@ -62,7 +62,8 @@ def test_a_module_version_in_libcuflynx_and_phlynx_formats(tmp_path):
     _, files = export(MODELS / 'chemostat_copies.ttl', tmp_path, 'copies')
     assert sorted(f.relative_to(tmp_path).as_posix() for f in files) == [
         'copies_bondgraph_v01_modules.cellml', 'copies_bondgraph_v01_modules_config.json',
-        'copies_bondgraph_v01_units.cellml', 'parameterisations/default/default_parameters.csv']
+        'copies_bondgraph_v01_units.cellml', 'copies_bondgraph_v01_variable_mapping.csv',
+        'parameterisations/default/default_parameters.csv']
     (entry,) = json.loads((tmp_path / 'copies_bondgraph_v01_modules_config.json').read_text())
     assert {k: entry[k] for k in ('module_type', 'module_subtype', 'module_format', 'component_file',
                                   'component_type', 'default_parameterisation')} == {

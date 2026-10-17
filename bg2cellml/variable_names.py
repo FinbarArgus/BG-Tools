@@ -117,7 +117,8 @@ def rule_for(rules: list[dict[str, str]], element_class: str, domain: str, var: 
     return max(fits, key=lambda r: (r['class'] != '', r['domain'] != ''))['pattern']
 
 def variable_table(model: 'BondgraphModel') -> list[dict[str, str]]:
-    """Every element variable: its element, class, template name, bond graph name and CellML name."""
+    """Every element variable: its element, class, template name, bond graph name and CellML name, and the
+    element's species, location and identifier (name)."""
     uri = model.uri.value
     rules = naming_rules(model)
     given: dict[tuple[str, str], str] = {}
@@ -152,7 +153,8 @@ def variable_table(model: 'BondgraphModel') -> list[dict[str, str]]:
                 new = f'{wanted}_{n}'
             taken.add(new)
             rows.append({'element': element.uri.value, 'class': element.element_class.rsplit('#', 1)[-1],
-                         'variable': var, 'bondgraph': old, 'cellml': new})
+                         'variable': var, 'bondgraph': old, 'cellml': new, 'species': ctx['species'],
+                         'location': ctx['location'], 'name': identifier})
     return rows
 
 def variable_names(model: 'BondgraphModel') -> dict[str, str]:
