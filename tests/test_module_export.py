@@ -112,7 +112,7 @@ LIBCUFLYNX_PYTHON = os.environ.get('LIBCUFLYNX_PYTHON')    # a Python with its d
 
 @pytest.mark.skipif(not (LIBCUFLYNX_SRC and LIBCUFLYNX_PYTHON),
                     reason='set LIBCUFLYNX_SRC and LIBCUFLYNX_PYTHON to build the module with libcuflynx')
-@pytest.mark.parametrize('model', ['chemostat_copies', 'chemostat_product', 'electrogenic_reaction'])
+@pytest.mark.parametrize('model', ['chemostat_copies', 'chemostat_product', 'electrogenic_reaction', 'chemostat_named'])
 def test_libcuflynx_builds_the_module_and_runs_it_as_bg2cellml(model, tmp_path):
     '''libcuflynx builds a one-instance model of the module from its default parameterisation alone, and Myokit
     runs it, from off rest, exactly as it runs bg2cellml's own CellML.'''

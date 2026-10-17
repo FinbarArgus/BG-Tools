@@ -37,6 +37,7 @@ from bg2cellml import BondgraphModel
 from bg2cellml import __version__
 from bg2cellml.bondgraph.framework import get_framework
 from bg2cellml.module_export import export_module
+from bg2cellml.variable_names import variable_table
 from bg2cellml.utils import etree_from_string, XMLNamespace
 
 #===============================================================================
@@ -164,7 +165,7 @@ async def model2cellml(bgrdf_model: BondgraphModel, source_path: Path, output: s
 
 async def bg2cellml(source_file: str, output: str|None, omex: str|None=None,
                     annotate: bool=False, bgrdf: bool=False, save_if_errors: bool=False,
-                    debug: bool=False, module: str|None=None):
+                    debug: bool=False, module: str|None=None, list_variables: bool=False):
     framework = await get_framework()
     if framework.has_issues:
         for issue in framework.issues:
@@ -190,6 +191,13 @@ async def bg2cellml(source_file: str, output: str|None, omex: str|None=None,
                 print(issue.reason)
         sys.exit('Issues loading Bondgraph Model')
 
+    if list_variables:
+        # each element variable's bond graph and CellML names (bgf:NamingRule, bgf:VariableName)
+        for row in variable_table(bgrdf_model):
+            element = row['element'].rsplit('#', 1)[-1]
+            print(f"{element:24} {row['class']:16} {row['variable']:8} {row['bondgraph']:28} {row['cellml']}")
+        return
+
     await model2cellml(bgrdf_model, source_path, output, omex=omex, bgrdf=bgrdf,
                         annotate=annotate, save_if_errors=save_if_errors, module=module)
 
@@ -205,11 +213,12 @@ def main():
     parser.add_argument('--output', metavar='OUTPUT_DIR', help='Directory where generated files are saved')
     parser.add_argument('--bgrdf', action='store_true', help='Input file is BG-RDF Turtle, not CellDL')
     parser.add_argument('--annotate', action='store_true', help='Output annotations relating BG elements and their CellML variables')
+    parser.add_argument('--list-variables', action='store_true', help="List each element variable: its element, class, template name, bond graph name and CellML name (after the model's naming rules)")
     parser.add_argument('--module', metavar='TYPE[/SUBTYPE]', help='Write a module version for libcuflynx and PhLynx into OUTPUT_DIR: its CellML, units, modules_config.json and default parameterisation (SUBTYPE defaults to bondgraph)')
     parser.add_argument('source', metavar='CELLDL', help='Input file')
 
     args = parser.parse_args()
-    if args.output is None and args.omex is None:
+    if args.output is None and args.omex is None and not args.list_variables:
         exit('Either `--output`, to specify an output directory, or `--omex`, to specify the OMEX file to create, is required.')
 
     # output and omex ==> create omex in output directory...
@@ -217,7 +226,8 @@ def main():
     if args.debug:
         print(f'bg2cellml version {__version__}')
     asyncio.run(bg2cellml(args.source, args.output, omex=args.omex, bgrdf=args.bgrdf,
-        annotate=args.annotate, save_if_errors=args.save_errors, debug=args.debug, module=args.module))
+        annotate=args.annotate, save_if_errors=args.save_errors, debug=args.debug, module=args.module,
+        list_variables=args.list_variables))
 
 #===============================================================================
 

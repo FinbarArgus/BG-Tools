@@ -19,6 +19,7 @@
 #===============================================================================
 
 from collections import defaultdict
+import copy
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -330,10 +331,15 @@ class CellMLModel:
 
     def annotation(self) -> list[dict[str, dict[str, list[str]]]]:
     #=============================================================
+        from ..variable_names import variable_names
+        names = variable_names(self.__model)
+        def renamed(path: str) -> str:
+            component, _, name = path.rpartition('/')
+            return f'{component}/{names.get(name, name)}' if component else names.get(name, name)
         bg_vars = defaultdict(list[str])
         for component in self.__components:
             for bg_element, variables in component.bg_elements.items():
-                bg_vars[bg_element].extend(variables)
+                bg_vars[bg_element].extend(renamed(v) for v in variables)
         return [
             { id: { 'variables': vars } }
                 for id, vars in bg_vars.items()
@@ -351,8 +357,11 @@ class CellMLModel:
 
     def to_xml(self) -> str:
     #=======================
-        self.__cellml.addprevious(header_comment(self.__model.uri.value))
-        cellml_tree = etree.ElementTree(self.__cellml)
+        # the model's own names for its variables (bgf:NamingRule, bgf:VariableName), if it gives any
+        from ..variable_names import rename_cellml, variable_names
+        cellml = rename_cellml(copy.deepcopy(self.__cellml), variable_names(self.__model))
+        cellml.addprevious(header_comment(self.__model.uri.value))
+        cellml_tree = etree.ElementTree(cellml)
         return etree.tostring(cellml_tree,
             encoding='unicode', inclusive_ns_prefixes=['cellml'],
             pretty_print=True)

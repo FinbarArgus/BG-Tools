@@ -1,0 +1,50 @@
+@prefix bgf: <https://bg-rdf.org/ontologies/bondgraph-framework#> .
+@prefix cdt: <https://w3id.org/cdt/> .
+@prefix tpl: <https://bg-rdf.org/templates/> .
+
+@prefix : <#> .
+
+# chemostat_copies.ttl with its variables named its own way: rules by element class and variable, and an
+# explicit name for one reaction's flow.
+
+:chemostat_named
+    a bgf:BondgraphModel ;
+    bgf:usesTemplate tpl:chemical.ttl ;
+    bgf:hasBondElement :Se_A_1, :Se_A_2, :Re_1, :Re_2, :q_B ;
+    bgf:hasNamingRule
+        [ bgf:forElementClass bgf:QuantityStore ; bgf:forVariable "q" ; bgf:namePattern "n_{species}_{location}" ] ,
+        [ bgf:forElementClass bgf:QuantityStore ; bgf:forVariable "u" ; bgf:namePattern "mu_{species}_{location}" ] ,
+        [ bgf:forElementClass bgf:PotentialSource ; bgf:forVariable "u" ; bgf:namePattern "mu_{species}_{location}" ] ,
+        [ bgf:forElementClass bgf:PotentialSource ; bgf:forVariable "v" ; bgf:namePattern "J_{species}_{location}" ] ,
+        [ bgf:forElementClass bgf:Reaction ; bgf:forVariable "v" ; bgf:namePattern "v_{name}" ] ,
+        [ bgf:forVariable "kappa" ; bgf:namePattern "k_{name}" ] .
+
+:Se_A_1
+    a bgf:ChemicalPotential ;
+    bgf:hasSymbol "Se" ; bgf:hasSpecies "A" ; bgf:hasLocation "c" ;
+    bgf:hasValue "1000 J/mol"^^cdt:ucum .
+
+:Se_A_2
+    a bgf:ChemicalPotential ;
+    bgf:hasSymbol "Se" ; bgf:hasSpecies "A" ; bgf:hasLocation "c" ;
+    bgf:hasValue "1000 J/mol"^^cdt:ucum .
+
+:Re_1
+    a bgf:ChemicalReactionNode ;
+    bgf:parameterValue [ bgf:varName "kappa" ; bgf:hasValue "0.5 mol/s"^^cdt:ucum ] .
+
+:Re_2
+    a bgf:ChemicalReactionNode ;
+    bgf:parameterValue [ bgf:varName "kappa" ; bgf:hasValue "0.25 mol/s"^^cdt:ucum ] ;
+    bgf:hasVariableName [ bgf:forVariable "v" ; bgf:cellmlName "v_second" ] .
+
+:q_B
+    a bgf:ChemicalStorageNode ;
+    bgf:hasSpecies "B" ; bgf:hasLocation "c" ;
+    bgf:hasValue "0.2 mol"^^cdt:ucum ;
+    bgf:parameterValue [ bgf:varName "K" ; bgf:hasValue "2 mol-1"^^cdt:ucum ] .
+
+:Se_A_1.Re_1 bgf:hasSource :Se_A_1 ; bgf:hasTarget :Re_1 .
+:Se_A_2.Re_2 bgf:hasSource :Se_A_2 ; bgf:hasTarget :Re_2 .
+:Re_1.q_B bgf:hasSource :Re_1 ; bgf:hasTarget :q_B .
+:Re_2.q_B bgf:hasSource :Re_2 ; bgf:hasTarget :q_B .

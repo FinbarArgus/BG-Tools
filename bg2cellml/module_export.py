@@ -52,6 +52,9 @@ import re
 
 import lxml.etree as etree
 
+from bg2cellml.bondgraph.framework_support import POTENTIAL_SOURCE
+from bg2cellml.variable_names import naming_rules, rename_cellml, render, rule_for, variable_names
+
 #===============================================================================
 
 CELLML_NS = 'http://www.cellml.org/cellml/1.1#'
@@ -145,8 +148,8 @@ def chemostat_groups(model) -> dict[tuple[str, str], list[tuple[str, str, int]]]
     sources with a species: a source's flow is the flow into it, whichever way its bond points, so the
     module's uptake from its surroundings is minus its flow (sign -1).
     """
-    from bg2cellml.bondgraph.framework_support import POTENTIAL_SOURCE
 
+    names = variable_names(model)               # as the CellML names them
     places = {}
     for row in model.rdf_graph.query(SOURCES.replace('%MODEL%', model.uri.value)):
         species = row['species'].value
@@ -159,7 +162,8 @@ def chemostat_groups(model) -> dict[tuple[str, str], list[tuple[str, str, int]]]
         if element.potential is None or element.flow is None:
             continue
         sign = -1
-        groups.setdefault(places[element.uri.value], []).append((element.potential.symbol, element.flow.symbol, sign))
+        u, v = element.potential.symbol, element.flow.symbol
+        groups.setdefault(places[element.uri.value], []).append((names.get(u, u), names.get(v, v), sign))
     return groups
 
 #===============================================================================
@@ -200,10 +204,25 @@ def export_module(model, cellml: str, out_dir: str|Path, module_type: str, modul
     def parameter(name: str, units: str, value: str, reference: str):
         rows.append([name, units, value, reference])
 
-    # One port per chemostat species and location: a shared potential and the net uptake
+    # One port per chemostat species and location: a shared potential and the net uptake, named by the model's
+    # rule for a potential source's u and v when it has one
+    rules = naming_rules(model)
+    def port_name(var: str, place: str, species: str, location: str) -> str:
+        if (pattern := rule_for(rules, POTENTIAL_SOURCE, var)) is not None:
+            return render(pattern, var=var, element=place, label='', species=species, location=location, name=species)
+        return f'{var}_{place}'
     for (species, location), copies in sorted(chemostat_groups(model).items()):
         place = f'{species}_{location}' if location else species
         place = NAME_PATTERN.sub('_', place)
+        # a copy already named as the port is renamed, so the port keeps its name
+        wanted = {port_name('u', place, species, location), port_name('v', place, species, location)}
+        clashes = {name: _unique(f'{name}_copy', taken) for copy in copies for name in copy[:2] if name in wanted}
+        if clashes:
+            rename_cellml(component, clashes)
+            for old, new in clashes.items():
+                variables[new] = variables.pop(old)
+                taken.discard(old)
+            copies = [(clashes.get(u, u), clashes.get(v, v), sign) for u, v, sign in copies]
         values = {variables[u].get('initial_value') for u, _, _ in copies if u in variables}
         values.discard(None)
         if len(values) > 1:
@@ -211,8 +230,8 @@ def export_module(model, cellml: str, out_dir: str|Path, module_type: str, modul
                                     f'{", ".join(sorted(values))}')
         u_units = variables[copies[0][0]].get('units')
         v_units = variables[copies[0][1]].get('units')
-        u_port = _unique(f'u_{place}', taken)
-        v_port = _unique(f'v_{place}', taken)
+        u_port = _unique(port_name('u', place, species, location), taken)
+        v_port = _unique(port_name('v', place, species, location), taken)
         for u, _, _ in copies:
             variables[u].attrib.pop('initial_value', None)
             _equation(math, u, _ci(u_port))
