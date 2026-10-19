@@ -19,7 +19,7 @@ from bg2cellml.bondgraph.framework import get_framework
 #===============================================================================
 
 MODELS = Path(__file__).parent / 'models'
-REFERENCES = Path(__file__).parent / 'references'      # metadata as bg2cellml wrote it before annotations
+REFERENCES = Path(__file__).parent / 'references'      # the metadata of the test models, which have no annotations
 
 CELLML_URI = 'file:///OUT/model.cellml'
 LOCAL = 'file:///OUT/model.ttl#'
