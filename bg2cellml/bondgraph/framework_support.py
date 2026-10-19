@@ -44,6 +44,8 @@ RESISTANCE         = BGF.Resistance.value
 
 ONENODE_JUNCTION   = BGF.OneNode.value
 TRANSFORM_JUNCTION = BGF.TransformNode.value  # Can act as a transformer of gyrator
+TRANSFORMER_NODE   = BGF.TransformerNode.value  # A transform node that is a transformer, also between domains
+GYRATOR_NODE       = BGF.GyratorNode.value      # ... a gyrator, also within a domain
 ZERONODE_JUNCTION  = BGF.ZeroNode.value
 
 #===============================================================================

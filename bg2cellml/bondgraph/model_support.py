@@ -38,7 +38,7 @@ from .framework_support import Domain, NamedPortVariable, PowerPort, Variable
 from .framework_support import ONENODE_JUNCTION, TRANSFORM_JUNCTION, ZERONODE_JUNCTION
 from .framework_support import FLOW_SOURCE, POTENTIAL_SOURCE
 from .framework_support import FLOW_STORE, QUANTITY_STORE, REACTION, RESISTANCE
-from .framework_support import GYRATOR_EQUATIONS, TRANSFORMER_EQUATIONS
+from .framework_support import GYRATOR_EQUATIONS, GYRATOR_NODE, TRANSFORMER_EQUATIONS, TRANSFORMER_NODE
 from .framework_support import TRANSFORM_FLOW_NAME, TRANSFORM_PORT_IDS, TRANSFORM_POTENTIAL_NAME, TRANSFORM_RATIO_NAME
 from .namespaces import BGF
 from .utils import ModelElement, pretty_name
@@ -474,11 +474,11 @@ class BondgraphElement(ModelElement):
 class BondgraphBond(ModelElement):
     def __init__(self, model: 'BondgraphModel', id: str,
                         source_id: str, target_id: str,
-                        count: Literal|None=None, label: str|None=None):
+                        count: int|None=None, label: str|None=None):
         super().__init__(model, id, label=label)
         self.__source_id = source_id
         self.__target_id = target_id
-        self.__bond_count = int(count.value) if count is not None else 1
+        self.__bond_count = count if count is not None else 1
 
     @property
     def bond_count(self) -> int:
@@ -501,6 +501,12 @@ class BondgraphJunction(ModelElement):
         super().__init__(model, id, symbol=symbol, label=label)
         self.__type = type.value
         self.__junction = model.framework.junction(self.__type)
+        # A Transformer or Gyrator node is a transform node that says which it is (a plain one is a
+        # transformer within a physical domain and a gyrator between two)
+        self.__transform_kind: str|None = None
+        if self.__type in (TRANSFORMER_NODE, GYRATOR_NODE):
+            self.__transform_kind = self.__type
+            self.__type = TRANSFORM_JUNCTION
         if self.__junction is None:
             model.report_issue(f'Unknown Junction {self.__type} for node {id}')
         self.__transform_relation: MathML|None = None
@@ -589,10 +595,30 @@ class BondgraphJunction(ModelElement):
             if power_port is not None:
                 bond_graph.nodes[port_uri_id]['power_port'] = power_port
                 bond_graph.nodes[port_uri_id]['port_type'] = TRANSFORM_JUNCTION
-        if domains[0] == domains[1]:
+        if self.__transform_kind == TRANSFORMER_NODE \
+        or (self.__transform_kind is None and domains[0] == domains[1]):
             self.__transform_relation = TRANSFORMER_EQUATIONS.copy()
         else:
             self.__transform_relation = GYRATOR_EQUATIONS.copy()
+
+    def __own_lhs(self, equation: Equation) -> Equation:
+    #===================================================
+        # A transform node's equations are written for its port variables (u_1 = RATIO u_0, v_1 = v_0/RATIO);
+        # where a port takes a connected element's variable (a store's potential, a reaction's flow), that
+        # variable is already defined there, so the equation is solved for the node's own variable instead,
+        # keeping the CellML causal (each variable defined once) whichever way the bonds are drawn.
+        own = {sympy.Symbol(v.symbol) for v in self.__variables.values()   # its ports' potentials and flows
+               if self.symbol and v.symbol.startswith((f'u_{self.symbol}_', f'v_{self.symbol}_'))}
+        lhs = equation.lhs
+        if not isinstance(lhs, sympy.Symbol) or lhs in own:
+            return equation
+        unknowns = [s for s in equation.rhs.free_symbols if s in own]
+        if len(unknowns) != 1:
+            return equation
+        solution = sympy.solve(sympy.Eq(lhs, equation.rhs), unknowns[0])
+        if len(solution) != 1:
+            return equation
+        return Equation(unknowns[0], solution[0], equation.provenance)
 
     def build_equations(self, bond_graph: nx.DiGraph) -> list[Equation]:
     #===================================================================
@@ -601,7 +627,7 @@ class BondgraphJunction(ModelElement):
             if self.__transform_relation is not None:
                 for name, variable in self.__variables.items():
                     self.__transform_relation.substitute(name, variable.symbol)
-                self.__equations = self.__transform_relation.equations
+                self.__equations = [self.__own_lhs(eq) for eq in self.__transform_relation.equations]
         elif bond_graph.degree[self.uri.value] > 1:
             # we are connected to several nodes
             inputs = []

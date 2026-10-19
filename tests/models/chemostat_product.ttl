@@ -1,0 +1,30 @@
+@prefix bgf: <https://bg-rdf.org/ontologies/bondgraph-framework#> .
+@prefix cdt: <https://w3id.org/cdt/> .
+@prefix tpl: <https://bg-rdf.org/templates/> .
+
+@prefix : <#> .
+
+# Store A reacting into chemostat B: the reaction's product is a chemostat.
+
+:chemostat_product
+    a bgf:BondgraphModel ;
+    bgf:usesTemplate tpl:chemical.ttl ;
+    bgf:hasBondElement :q_A, :Re, :Se_B .
+
+:q_A
+    a bgf:ChemicalStorageNode ;
+    bgf:hasSpecies "A" ; bgf:hasLocation "c" ;
+    bgf:hasValue "0.5 mol"^^cdt:ucum ;
+    bgf:parameterValue [ bgf:varName "K" ; bgf:hasValue "3 mol-1"^^cdt:ucum ] .
+
+:Re
+    a bgf:ChemicalReactionNode ;
+    bgf:parameterValue [ bgf:varName "kappa" ; bgf:hasValue "0.5 mol/s"^^cdt:ucum ] .
+
+:Se_B
+    a bgf:ChemicalPotential ;
+    bgf:hasSymbol "Se" ; bgf:hasSpecies "B" ; bgf:hasLocation "c" ;
+    bgf:hasValue "-500 J/mol"^^cdt:ucum .
+
+:q_A.Re bgf:hasSource :q_A ; bgf:hasTarget :Re .
+:Re.Se_B bgf:hasSource :Re ; bgf:hasTarget :Se_B .

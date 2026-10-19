@@ -1,0 +1,49 @@
+@prefix bgf: <https://bg-rdf.org/ontologies/bondgraph-framework#> .
+@prefix cdt: <https://w3id.org/cdt/> .
+@prefix tpl: <https://bg-rdf.org/templates/> .
+
+@prefix : <#> .
+
+# A -> B moving one positive charge across a membrane (into the side whose potential is phi = Q/C): the membrane's
+# capacitor is coupled to the reaction through two transformers, which split the electrical work q F phi evenly
+# between its directions: the forward potential sees -q F phi / 2 (TF_f, ratio -q F / 2), the reverse +q F phi / 2
+# (TF_r, ratio 2 / (q F), as it is drawn from the reaction to the capacitor), and the capacitor gains q F v.
+
+:electrogenic_reaction
+    a bgf:BondgraphModel ;
+    bgf:usesTemplate tpl:chemical.ttl, tpl:electrical.ttl ;
+    bgf:hasBondElement :Se_A, :Re, :q_B, :C_m ;
+    bgf:hasJunctionStructure :TF_f, :TF_r .
+
+:Se_A
+    a bgf:ChemicalPotential ;
+    bgf:hasValue "1000 J/mol"^^cdt:ucum .
+
+:Re
+    a bgf:ChemicalReactionNode ;
+    bgf:parameterValue [ bgf:varName "kappa" ; bgf:hasValue "0.5 mol/s"^^cdt:ucum ] .
+
+:q_B
+    a bgf:ChemicalStorageNode ;
+    bgf:hasValue "0.2 mol"^^cdt:ucum ;
+    bgf:parameterValue [ bgf:varName "K" ; bgf:hasValue "2 mol-1"^^cdt:ucum ] .
+
+:C_m
+    a bgf:ElectricalCapacitiveNode ;
+    bgf:hasValue "-0.015 C"^^cdt:ucum ;
+    bgf:parameterValue [ bgf:varName "C" ; bgf:hasValue "0.1 F"^^cdt:ucum ] .
+
+:TF_f
+    a bgf:TransformerNode ;
+    bgf:hasValue "-48242.666 C/mol"^^cdt:ucum .
+
+:TF_r
+    a bgf:TransformerNode ;
+    bgf:hasValue "2.07285049e-05 mol/C"^^cdt:ucum .
+
+:Se_A.Re bgf:hasSource :Se_A ; bgf:hasTarget :Re .
+:C_m.TF_f bgf:hasSource :C_m ; bgf:hasTarget :TF_f .
+:TF_f.Re bgf:hasSource :TF_f ; bgf:hasTarget :Re .
+:Re.q_B bgf:hasSource :Re ; bgf:hasTarget :q_B .
+:Re.TF_r bgf:hasSource :Re ; bgf:hasTarget :TF_r .
+:TF_r.C_m bgf:hasSource :TF_r ; bgf:hasTarget :C_m .

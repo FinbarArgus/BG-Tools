@@ -1,0 +1,135 @@
+@prefix bgf: <https://bg-rdf.org/ontologies/bondgraph-framework#> .
+@prefix bqbiol: <http://biomodels.net/biology-qualifiers/> .
+@prefix cdt: <https://w3id.org/cdt/> .
+@prefix semsim: <http://bime.uw.edu/semsim/> .
+@prefix tpl: <https://bg-rdf.org/templates/> .
+
+@prefix : <#> .
+
+# Hexokinase (Rhea:17825, ATP + D-glucose = ADP + D-glucose 6-phosphate + H+) with its substrates combined at a
+# 1-junction, glucose and glucose 6-phosphate stores behind 0-junctions; adenylate kinase (Rhea:12973 read
+# backwards, 2 ADP = ATP + AMP) with a copy of the ADP chemostat bonded to its 1-junction with bondCount 2, the
+# reaction itself not annotated; and a reaction between two unannotated species. The reactions' flows are named
+# J_<element>.
+
+:annotated_reactions
+    a bgf:BondgraphModel ;
+    bgf:usesTemplate tpl:chemical.ttl ;
+    bgf:hasBondElement :Se_ATP, :Se_ATP_2, :Se_ADP, :Se_ADP_2, :Se_AMP, :Se_H, :q_Glc, :q_G6P, :Re_HK, :Re_AK,
+                       :q_X, :q_Y, :Re_XY ;
+    bgf:hasJunctionStructure :HK_f, :HK_r, :AK_f, :AK_r, :XY_f, :XY_r, :u_Glc, :u_G6P ;
+    bgf:hasNamingRule [ bgf:forElementClass bgf:Reaction ; bgf:forVariable "v" ; bgf:namePattern "J_{name}" ] .
+
+:Se_ATP
+    a bgf:ChemicalPotential ;
+    bgf:hasSymbol "Se" ; bgf:hasSpecies "ATP" ; bgf:hasLocation "c" ;
+    bgf:hasValue "3000 J/mol"^^cdt:ucum ;
+    bqbiol:is <https://identifiers.org/CHEBI:30616> ;
+    bqbiol:isPartOf <https://identifiers.org/GO:0005829> .
+
+:Se_ATP_2
+    a bgf:ChemicalPotential ;
+    bgf:hasSymbol "Se" ; bgf:hasSpecies "ATP" ; bgf:hasLocation "c" ;
+    bgf:hasValue "3000 J/mol"^^cdt:ucum ;
+    bqbiol:is <https://identifiers.org/CHEBI:30616> ;
+    bqbiol:isPartOf <https://identifiers.org/GO:0005829> .
+
+:Se_ADP
+    a bgf:ChemicalPotential ;
+    bgf:hasSymbol "Se" ; bgf:hasSpecies "ADP" ; bgf:hasLocation "c" ;
+    bgf:hasValue "1000 J/mol"^^cdt:ucum ;
+    bqbiol:is <https://identifiers.org/CHEBI:456216> ;
+    bqbiol:isPartOf <https://identifiers.org/GO:0005829> .
+
+:Se_ADP_2
+    a bgf:ChemicalPotential ;
+    bgf:hasSymbol "Se" ; bgf:hasSpecies "ADP" ; bgf:hasLocation "c" ;
+    bgf:hasValue "1000 J/mol"^^cdt:ucum ;
+    bqbiol:is <https://identifiers.org/CHEBI:456216> ;
+    bqbiol:isPartOf <https://identifiers.org/GO:0005829> .
+
+:Se_AMP
+    a bgf:ChemicalPotential ;
+    bgf:hasSymbol "Se" ; bgf:hasSpecies "AMP" ; bgf:hasLocation "c" ;
+    bgf:hasValue "500 J/mol"^^cdt:ucum ;
+    bqbiol:is <https://identifiers.org/CHEBI:456215> ;
+    bqbiol:isPartOf <https://identifiers.org/GO:0005829> .
+
+:Se_H
+    a bgf:ChemicalPotential ;
+    bgf:hasSymbol "Se" ; bgf:hasSpecies "H" ; bgf:hasLocation "c" ;
+    bgf:hasValue "0 J/mol"^^cdt:ucum ;
+    bqbiol:is <https://identifiers.org/CHEBI:15378> ;
+    bqbiol:isPartOf <https://identifiers.org/GO:0005829> .
+
+:q_Glc
+    a bgf:ChemicalConcentration ;
+    bgf:hasSpecies "Glc" ; bgf:hasLocation "c" ;
+    bgf:hasValue "1 mol"^^cdt:ucum ;
+    bgf:parameterValue [ bgf:varName "K" ; bgf:hasValue "2 mol-1"^^cdt:ucum ] ;
+    bqbiol:is <https://identifiers.org/CHEBI:4167> ;
+    bqbiol:isPartOf <https://identifiers.org/GO:0005829> .
+
+:q_G6P
+    a bgf:ChemicalConcentration ;
+    bgf:hasSpecies "G6P" ; bgf:hasLocation "c" ;
+    bgf:hasValue "0.1 mol"^^cdt:ucum ;
+    bgf:parameterValue [ bgf:varName "K" ; bgf:hasValue "2 mol-1"^^cdt:ucum ] ;
+    bqbiol:is <https://identifiers.org/CHEBI:61548> ;
+    bqbiol:isPartOf <https://identifiers.org/GO:0005829> .
+
+:Re_HK
+    a bgf:ChemicalReaction ;
+    bgf:parameterValue [ bgf:varName "kappa" ; bgf:hasValue "0.5 mol/s"^^cdt:ucum ] ;
+    bqbiol:isVersionOf <https://identifiers.org/rhea:17825>, <https://identifiers.org/SBO:0000176> ;
+    semsim:hasMediatorParticipant <https://identifiers.org/uniprot:P19367> .
+
+:Re_AK
+    a bgf:ChemicalReaction ;
+    bgf:parameterValue [ bgf:varName "kappa" ; bgf:hasValue "0.25 mol/s"^^cdt:ucum ] .
+
+:q_X
+    a bgf:ChemicalConcentration ;
+    bgf:hasSpecies "X" ; bgf:hasLocation "c" ;
+    bgf:hasValue "1 mol"^^cdt:ucum ;
+    bgf:parameterValue [ bgf:varName "K" ; bgf:hasValue "1 mol-1"^^cdt:ucum ] .
+
+:q_Y
+    a bgf:ChemicalConcentration ;
+    bgf:hasSpecies "Y" ; bgf:hasLocation "c" ;
+    bgf:hasValue "1 mol"^^cdt:ucum ;
+    bgf:parameterValue [ bgf:varName "K" ; bgf:hasValue "1 mol-1"^^cdt:ucum ] .
+
+:Re_XY
+    a bgf:ChemicalReaction ;
+    bgf:parameterValue [ bgf:varName "kappa" ; bgf:hasValue "0.1 mol/s"^^cdt:ucum ] .
+
+:HK_f a bgf:OneNode .
+:HK_r a bgf:OneNode .
+:AK_f a bgf:OneNode .
+:AK_r a bgf:OneNode .
+:XY_f a bgf:OneNode .
+:XY_r a bgf:OneNode .
+:u_Glc a bgf:ZeroNode .
+:u_G6P a bgf:ZeroNode .
+
+:Se_ATP.HK_f bgf:hasSource :Se_ATP ; bgf:hasTarget :HK_f .
+:u_Glc.q_Glc bgf:hasSource :u_Glc ; bgf:hasTarget :q_Glc .
+:u_Glc.HK_f bgf:hasSource :u_Glc ; bgf:hasTarget :HK_f .
+:HK_f.Re_HK bgf:hasSource :HK_f ; bgf:hasTarget :Re_HK .
+:Re_HK.HK_r bgf:hasSource :Re_HK ; bgf:hasTarget :HK_r .
+:HK_r.u_G6P bgf:hasSource :HK_r ; bgf:hasTarget :u_G6P .
+:u_G6P.q_G6P bgf:hasSource :u_G6P ; bgf:hasTarget :q_G6P .
+:HK_r.Se_ADP bgf:hasSource :HK_r ; bgf:hasTarget :Se_ADP .
+:HK_r.Se_H bgf:hasSource :HK_r ; bgf:hasTarget :Se_H .
+
+:Se_ADP_2.AK_f bgf:hasSource :Se_ADP_2 ; bgf:hasTarget :AK_f ; bgf:bondCount 2 .
+:AK_f.Re_AK bgf:hasSource :AK_f ; bgf:hasTarget :Re_AK .
+:Re_AK.AK_r bgf:hasSource :Re_AK ; bgf:hasTarget :AK_r .
+:AK_r.Se_ATP_2 bgf:hasSource :AK_r ; bgf:hasTarget :Se_ATP_2 .
+:AK_r.Se_AMP bgf:hasSource :AK_r ; bgf:hasTarget :Se_AMP .
+
+:q_X.XY_f bgf:hasSource :q_X ; bgf:hasTarget :XY_f .
+:XY_f.Re_XY bgf:hasSource :XY_f ; bgf:hasTarget :Re_XY .
+:Re_XY.XY_r bgf:hasSource :Re_XY ; bgf:hasTarget :XY_r .
+:XY_r.q_Y bgf:hasSource :XY_r ; bgf:hasTarget :q_Y .

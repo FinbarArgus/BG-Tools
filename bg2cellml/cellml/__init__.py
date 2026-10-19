@@ -19,8 +19,10 @@
 #===============================================================================
 
 from collections import defaultdict
+import copy
 from datetime import datetime, timezone
 from pathlib import Path
+import re
 from typing import TYPE_CHECKING
 
 #===============================================================================
@@ -30,12 +32,13 @@ import sympy
 
 #===============================================================================
 
-from ..bondgraph.framework_support import Variable, VOI_VARIABLE
+from ..annotations import model_annotations, ModelAnnotations
+from ..bondgraph.framework_support import QUANTITY_STORE, Variable, VOI_VARIABLE
 from ..bondgraph.model_support import BondgraphElement, BondgraphJunction
 from ..bondgraph.utils import clean_name, ModelElement
 from ..mathml import Equation, MATHML_NS
 from ..rdf import literal, namedNode, RdfGraph, Triple, uri_fragment
-from ..rdf.namespace import Namespace, RDF, RDFS
+from ..rdf.namespace import Namespace, RDF, RDFS, XSD
 from ..units import Units
 from ..utils import XMLNamespace
 from ..version import __version__
@@ -55,6 +58,29 @@ METADATA_NAMESPACES = {
     'bqmodel': str(BQMODEL),
     'rdfs': str(RDFS),
 }
+
+# OMEX Metadata 1.2 composite annotations (section 2.3.7): local resources are in the annotation file's own
+# namespace (`local:`), physical properties are OPB terms
+ANNOTATION_URI = 'file:///CELLML_ANNOTATION_URI'
+LOCAL_NS = Namespace(f'{ANNOTATION_URI}#')
+
+BGF = Namespace(METADATA_NAMESPACES['bgf'])
+BQBIOL = Namespace('http://biomodels.net/biology-qualifiers/')
+OPB = Namespace('https://identifiers.org/opb:')
+SEMSIM = Namespace('http://bime.uw.edu/semsim/')
+
+OPB_CHEMICAL_MOLAR_FLOW_RATE = OPB.OPB_00592
+OPB_MOLAR_AMOUNT_OF_CHEMICAL = OPB.OPB_00425
+
+ANNOTATION_NAMESPACES = {
+    'bqbiol': str(BQBIOL),
+    'local': str(LOCAL_NS),
+    'opb': str(OPB),
+    'semsim': str(SEMSIM),
+}
+
+def local_name(*parts: str) -> str:
+    return '_'.join(re.sub(r'[^A-Za-z0-9_]', '_', part) for part in parts if part)
 
 #===============================================================================
 
@@ -199,9 +225,12 @@ class CellMLModel:
         self.__current_component = self.__components[0]
 
         self.__model = model
+        self.__elements = {element.uri.value: element for element in model.elements}
         self.__known_units: set[str] = set()
         self.__known_fixed: set[str] = set()
         self.__known_variables: dict[str, tuple[Variable, ModelElement]] = {}
+        self.__variable_ids: dict[str, str] = {}        # bond graph symbol -> the CellML variable's cmeta:id
+        self.__has_annotations = False
 
         self.__metadata = RdfGraph()
         self.__metadata.add(Triple(namedNode(CELLML_MODEL_URI), BQMODEL.isDescribedBy, model.uri))
@@ -214,6 +243,7 @@ class CellMLModel:
         for junction in model.junctions:
             self.__add_junction_variables(junction)
         self.__output_variable_definitions()
+        self.__add_annotations(model_annotations(model))
         self.__equations_to_mathml()
         for component in self.__components:
             component.add_dimensionless_attrib()
@@ -278,7 +308,68 @@ class CellMLModel:
             self.__add_units(variable.units)
             cellml_variable = CellMLVariable(self.__current_component, variable)
             self.__current_component.add_variable(cellml_variable, model_element.id)
+            self.__variable_ids[symbol] = cellml_variable.id
             self.__add_metadata(cellml_variable, variable, model_element)
+
+    def __element_variable_id(self, element_uri: str, variable_type: str) -> str|None:
+    #=================================================================================
+        # the cmeta:id of the element's variable of the type (it stays when naming rules rename the variable)
+        element = self.__elements.get(element_uri)
+        if element is not None:
+            for variable in element.variables.values():
+                if variable.type is not None and variable.type.value == variable_type:
+                    return self.__variable_ids.get(variable.symbol)
+        return None
+
+    def __add_annotations(self, annotations: ModelAnnotations):
+    #===========================================================
+        # OMEX Metadata 1.2 composite annotations, for the reactions and species that are annotated or have
+        # annotated participants
+        add = lambda s, p, o: self.__metadata.add(Triple(s, p, o))
+        entities = set()
+        for reaction in annotations.reactions:
+            if not (reaction.annotated or any(annotations.entity(p).annotated for p in reaction.participants)):
+                continue
+            element = local_name(uri_fragment(reaction.element))
+            process = LOCAL_NS(f'process_{element}')
+            if (flux := self.__element_variable_id(reaction.element, BGF.FlowVariable.value)) is not None:
+                add(CELLML_MODEL_NS(flux), BQBIOL.isVersionOf, OPB_CHEMICAL_MOLAR_FLOW_RATE)
+                add(CELLML_MODEL_NS(flux), BQBIOL.isPropertyOf, process)
+            for term in reaction.rhea + reaction.sbo:
+                add(process, BQBIOL.isVersionOf, namedNode(term))
+            for term in reaction.rhea_parts:
+                add(process, BQBIOL.hasPart, namedNode(term))
+            counts = {'left': 0, 'right': 0}
+            for participant in reaction.participants:
+                counts[participant.side] += 1
+                role, predicate = (('source', SEMSIM.hasSourceParticipant) if participant.side == 'left'
+                              else ('sink', SEMSIM.hasSinkParticipant))
+                node = LOCAL_NS(f'{role}_{element}_{counts[participant.side]}')
+                add(process, predicate, node)
+                add(node, SEMSIM.hasMultiplier, literal(f'{float(participant.coefficient)}', XSD.double))
+                add(node, SEMSIM.hasPhysicalEntityReference,
+                    LOCAL_NS(local_name('entity', participant.species, participant.location)))
+                entities.add((participant.species, participant.location))
+            for k, mediator in enumerate(reaction.mediators, 1):
+                node = LOCAL_NS(f'mediator_{element}' if len(reaction.mediators) == 1 else f'mediator_{element}_{k}')
+                add(process, SEMSIM.hasMediatorParticipant, node)
+                add(node, SEMSIM.hasPhysicalEntityReference, namedNode(mediator))
+            self.__has_annotations = True
+        for key, entity in annotations.entities.items():
+            if not (entity.annotated or key in entities):
+                continue
+            node = LOCAL_NS(local_name('entity', entity.species, entity.location))
+            for term in entity.chebi:
+                add(node, BQBIOL('is'), namedNode(term))
+            for term in entity.go:
+                add(node, BQBIOL.isPartOf, namedNode(term))
+            for element_uri in entity.elements:
+                element = self.__elements.get(element_uri)
+                if (element is not None and element.element_class == QUANTITY_STORE
+                and (amount := self.__element_variable_id(element_uri, BGF.QuantityVariable.value)) is not None):
+                    add(CELLML_MODEL_NS(amount), BQBIOL.isVersionOf, OPB_MOLAR_AMOUNT_OF_CHEMICAL)
+                    add(CELLML_MODEL_NS(amount), BQBIOL.isPropertyOf, node)
+            self.__has_annotations = True
 
     def __elements_from_units(self, units: Units) -> list[list[str]]:
     #================================================================
@@ -330,29 +421,46 @@ class CellMLModel:
 
     def annotation(self) -> list[dict[str, dict[str, list[str]]]]:
     #=============================================================
+        from ..variable_names import variable_names
+        names = variable_names(self.__model)
+        def renamed(path: str) -> str:
+            component, _, name = path.rpartition('/')
+            return f'{component}/{names.get(name, name)}' if component else names.get(name, name)
         bg_vars = defaultdict(list[str])
         for component in self.__components:
             for bg_element, variables in component.bg_elements.items():
-                bg_vars[bg_element].extend(variables)
+                bg_vars[bg_element].extend(renamed(v) for v in variables)
         return [
             { id: { 'variables': vars } }
                 for id, vars in bg_vars.items()
         ]
 
-    async def metadata(self, cellml_uri: str|None) -> str:
-    #=====================================================
+    async def metadata(self, cellml_uri: str|None, annotation_uri: str|None=None) -> str:
+    #====================================================================================
+        # `annotation_uri` is where the metadata is written, the base of its `local:` resources; by default the
+        # CellML's URI with a .ttl suffix
         namespaces = METADATA_NAMESPACES.copy()
+        if self.__has_annotations:
+            namespaces.update(ANNOTATION_NAMESPACES)
         namespaces['model'] = str(CELLML_MODEL_NS)
-        namespaces['diagram'] = f'{self.__model.uri.value}#'
+        # the source document's namespace (a BG-RDF model's URI has a fragment, a CellDL one's none)
+        namespaces['diagram'] = f'{self.__model.uri.value.split("#", 1)[0]}#'
         metadata = await self.__metadata.serialise(namespaces)
         if cellml_uri is not None:
+            if annotation_uri is None:
+                annotation_uri = f'{cellml_uri.removesuffix(".cellml")}.ttl'
             metadata = metadata.replace(CELLML_MODEL_URI, cellml_uri)
+        if annotation_uri is not None:
+            metadata = metadata.replace(ANNOTATION_URI, annotation_uri)
         return metadata
 
     def to_xml(self) -> str:
     #=======================
-        self.__cellml.addprevious(header_comment(self.__model.uri.value))
-        cellml_tree = etree.ElementTree(self.__cellml)
+        # the model's own names for its variables (bgf:NamingRule, bgf:VariableName), if it gives any
+        from ..variable_names import rename_cellml, variable_names
+        cellml = rename_cellml(copy.deepcopy(self.__cellml), variable_names(self.__model))
+        cellml.addprevious(header_comment(self.__model.uri.value))
+        cellml_tree = etree.ElementTree(cellml)
         return etree.tostring(cellml_tree,
             encoding='unicode', inclusive_ns_prefixes=['cellml'],
             pretty_print=True)
