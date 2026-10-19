@@ -19,7 +19,7 @@ from bg2cellml.bondgraph.framework import get_framework
 #===============================================================================
 
 MODELS = Path(__file__).parent / 'models'
-OUTPUT = Path(__file__).parent / 'output'
+REFERENCES = Path(__file__).parent / 'references'      # metadata as bg2cellml wrote it before annotations
 
 CELLML_URI = 'file:///OUT/model.cellml'
 LOCAL = 'file:///OUT/model.ttl#'
@@ -161,7 +161,7 @@ def test_annotations_name_the_renamed_variables_by_their_ids():
 def test_a_model_without_annotations_has_the_same_metadata():
     for name in ('chemostat_copies', 'chemostat_named'):
         metadata = metadata_of(name).replace(MODELS.resolve().as_uri(), 'file:///MODELS')
-        reference = (OUTPUT / f'{name}.metadata.ttl').read_text().replace('file:///MODEL.cellml', CELLML_URI)
+        reference = (REFERENCES / f'{name}.metadata.ttl').read_text().replace('file:///MODEL.cellml', CELLML_URI)
         assert triples(metadata) == triples(reference)
         assert 'bqbiol' not in metadata and 'local:' not in metadata
 
