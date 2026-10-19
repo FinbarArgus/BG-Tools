@@ -53,6 +53,36 @@ bond graph name is written in bond graph notation (`q^{\mathrm{G6P}}_{c}`); one 
 (bgf:NamingRule, bgf:VariableName) by libcuflynx's default rule for its new name. See
 `bg2cellml/variable_mapping.py`.
 
+### Reaction and species annotations
+
+A model's elements may carry identifiers.org terms (`https://identifiers.org/<prefix>:<id>`), as the CellDL
+editor's Annotations panel writes them. A reaction: `bqbiol:isVersionOf` its Rhea reaction (`rhea:17825`) and an
+SBO term (`SBO:0000176` biochemical, `SBO:0000655` transport reaction), `bqbiol:hasPart` each Rhea reaction a
+lumped reaction combines, and `semsim:hasMediatorParticipant` its enzyme or transporter (`uniprot:P19367`). A
+species element (a store, or a chemostat with `bgf:hasSpecies`): `bqbiol:is` its ChEBI term and `bqbiol:isPartOf`
+its GO compartment, the same on every element of that species and location. A reaction's participants are the
+species elements bonded to it, directly or through 0- and 1-junctions: the bond into the reaction makes them
+substrates, out of it products, with the bonds' `bgf:bondCount` as coefficient. `bg2cellml/annotations.py`'s
+`model_annotations(model)` reads all this as plain data.
+
+```sh
+$ PYTHONPATH=cli python -m bgtool --annotate --output OUT_DIR glycogen.celldl.svg
+```
+
+writes `OUT_DIR/<name>.ttl` beside the CellML (and `--omex` puts it in the archive as its OMEX metadata). Each
+variable is `bqmodel:isDerivedFrom` its bond graph element. Reactions and species that are annotated, or have
+annotated participants, also get [OMEX Metadata 1.2](https://doi.org/10.1515/jib-2021-0020) composite
+annotations, with `local:` the annotation file's own namespace and `opb:` `https://identifiers.org/opb:`:
+the reaction's flux variable `bqbiol:isVersionOf opb:OPB_00592` (chemical molar flow rate) and
+`bqbiol:isPropertyOf local:process_<element>`; the process `bqbiol:isVersionOf` its Rhea and SBO terms (or
+`bqbiol:hasPart` each Rhea reaction), with `semsim:hasSourceParticipant local:source_<element>_<k>` (substrates)
+and `semsim:hasSinkParticipant local:sink_<element>_<k>` (products), each with `semsim:hasMultiplier` (an
+`xsd:double`) and `semsim:hasPhysicalEntityReference local:entity_<species>_<location>`, and a mediator
+`local:mediator_<element>` referring to its UniProt term; the entity `bqbiol:is` its ChEBI term and
+`bqbiol:isPartOf` its GO term; and a store's amount `bqbiol:isVersionOf opb:OPB_00425` (molar amount of
+chemical), `bqbiol:isPropertyOf` its entity. Variables are named by their `cmeta:id`, which naming rules don't
+change.
+
 ## Example models:
 
 * [An RC electrical circuit](https://github.com/CellDL/BG-RDF/blob/main/examples/example_RC.ttl) 

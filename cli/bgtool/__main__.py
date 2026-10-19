@@ -125,7 +125,7 @@ async def model2cellml(bgrdf_model: BondgraphModel, source_path: Path, output: s
                 # Save the CellML annotation in the archive
                 annotation_file = cellml_file.with_suffix('.ttl')
                 # After adjusting file paths in the serialised annotation
-                cellml_annotation = await cellml_model.metadata(cellml_file_uri)
+                cellml_annotation = await cellml_model.metadata(cellml_file_uri, annotation_file.resolve().as_uri())
                 source_uri = source_path.resolve().as_uri()
                 source_omex_uri = (build_path / source_path.name).resolve().as_uri()
                 cellml_annotation = cellml_annotation.replace(source_uri, source_omex_uri)
@@ -162,7 +162,7 @@ async def model2cellml(bgrdf_model: BondgraphModel, source_path: Path, output: s
                 cellml_file_uri = cellml_file.resolve().as_uri()
                 annotation_file = cellml_file.with_suffix('.ttl')
                 with open(annotation_file, 'w') as fp:
-                    fp.write(cellml_model.metadata(cellml_file_uri))
+                    fp.write(await cellml_model.metadata(cellml_file_uri, annotation_file.resolve().as_uri()))
                     log.info(f'Annotation: {pretty_log(annotation_file)}')
 
 #===============================================================================
